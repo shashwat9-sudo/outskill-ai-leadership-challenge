@@ -45,13 +45,38 @@ export function validationFailure(error: ZodError): NextResponse<ApiFailure> {
 }
 
 /**
+ * Recognise our own error types without relying on `instanceof`.
+ *
+ * Next.js bundles each route handler separately, so `@/lib/database/store` can end up loaded more
+ * than once in the same process. Two copies of a class are two identities, and `instanceof` returns
+ * false across them — which silently demoted every StoreError to an unexpected 500 and hid the real
+ * status and message. Matching on the marker properties the constructors set is stable regardless of
+ * how the module graph is split.
+ */
+function isStoreError(error: unknown): error is StoreError {
+  return (
+    error instanceof StoreError ||
+    (error instanceof Error && error.name === 'StoreError' && typeof (error as StoreError).code === 'string')
+  );
+}
+
+function isMissingEnvError(error: unknown): error is MissingEnvError {
+  return (
+    error instanceof MissingEnvError ||
+    (error instanceof Error &&
+      error.name === 'MissingEnvError' &&
+      typeof (error as MissingEnvError).variable === 'string')
+  );
+}
+
+/**
  * Last-resort handler for anything a route did not anticipate.
  * The detail goes to the log; the visitor gets a sentence and an id.
  */
 export function unexpectedFailure(error: unknown, context: string): NextResponse<ApiFailure> {
   const requestId = newRequestId();
 
-  if (error instanceof MissingEnvError) {
+  if (isMissingEnvError(error)) {
     logger.error('api.error', { context, requestId, reason: 'missing_env', variable: error.variable });
     return failure(
       'not_configured',
@@ -61,7 +86,7 @@ export function unexpectedFailure(error: unknown, context: string): NextResponse
     );
   }
 
-  if (error instanceof StoreError) {
+  if (isStoreError(error)) {
     logger.error('api.error', { context, requestId, reason: `store_${error.code}`, detail: error.message });
     const status = error.code === 'not_found' ? 404 : error.code === 'invalid_state' ? 409 : 503;
     const message =
