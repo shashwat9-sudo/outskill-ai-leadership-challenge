@@ -394,6 +394,96 @@ describe('leaderboard and stats', () => {
     expect(await store.getRank(started.attemptId)).toBe(1);
   });
 
+  it('disqualifies an entry without destroying any of it', async () => {
+    // Regression guard for the defect fixed in migration 0006: disqualification kept failing because
+    // `attempts_result_consistent` only permitted a result on a 'submitted' or 'timed_out' row, so
+    // moving a scored attempt to 'disqualified' violated the constraint. The behaviour that mattered
+    // — and that any future "fix" must not trade away — is that the result survives the status change.
+    const board = await store.getLeaderboard(10);
+    const target = board[0];
+    const other = board[1];
+    expect(target).toBeDefined();
+    expect(other).toBeDefined();
+
+    const beforeAttempt = await store.getAttempt(target?.attempt_id ?? '');
+    expect(beforeAttempt?.status).toBe('submitted');
+
+    const result = await store.disqualifyAttempt(
+      target?.attempt_id ?? '',
+      'Duplicate entry confirmed at the desk',
+      'event-admin:test',
+    );
+
+    // Status and reason are recorded.
+    expect(result.status).toBe('disqualified');
+    expect(result.disqualification_reason).toBe('Duplicate entry confirmed at the desk');
+    expect(result.disqualified_at).not.toBeNull();
+
+    // Nothing is deleted: the attempt row, its score, its time and its participant all survive.
+    const afterAttempt = await store.getAttempt(target?.attempt_id ?? '');
+    expect(afterAttempt).not.toBeNull();
+    expect(afterAttempt?.correct_count).toBe(beforeAttempt?.correct_count);
+    expect(afterAttempt?.elapsed_ms).toBe(beforeAttempt?.elapsed_ms);
+    expect(afterAttempt?.submitted_at).toBe(beforeAttempt?.submitted_at);
+    expect(await store.getParticipant(target?.participant_id ?? '')).not.toBeNull();
+
+    // It leaves the public board, and nobody else is affected.
+    expect(await store.getRank(target?.attempt_id ?? '')).toBeNull();
+    const afterBoard = await store.getLeaderboard(10);
+    expect(afterBoard.map((row) => row.attempt_id)).not.toContain(target?.attempt_id);
+    expect(afterBoard.map((row) => row.attempt_id)).toContain(other?.attempt_id);
+    const otherAttempt = await store.getAttempt(other?.attempt_id ?? '');
+    expect(otherAttempt?.status).toBe('submitted');
+    expect(otherAttempt?.disqualified_at).toBeNull();
+  });
+
+  it('records the disqualification and its reason in the audit log', async () => {
+    const board = await store.getLeaderboard(10);
+    const target = board[0];
+    const reason = 'Second entry under a different email, confirmed at the desk';
+
+    await store.disqualifyAttempt(target?.attempt_id ?? '', reason, 'event-admin:test');
+    await store.recordAudit({
+      action: 'attempt.disqualified',
+      target_type: 'attempt',
+      target_id: target?.attempt_id ?? '',
+      detail: { reason },
+      actor_label: 'event-admin:test',
+    });
+
+    const audit = await store.listAudit(20, target?.attempt_id ?? '');
+    const entry = audit.find((row) => row.action === 'attempt.disqualified');
+    expect(entry).toBeDefined();
+    expect(entry?.detail).toMatchObject({ reason });
+  });
+
+  it('keeps an invalidated attempt with a result valid too — the same constraint blocked reset', async () => {
+    // reset_participant moves a submitted attempt to 'invalidated' while keeping its result, which
+    // hit the identical check-constraint failure before 0006.
+    const { participantId } = await store.registerParticipant(
+      registration({ email: 'reset.after.submit@example.invalid', phone: '+919000000431' }),
+    );
+    const { started, questions } = await startRun(participantId ?? '');
+    await store.finaliseAttempt(
+      started.attemptId,
+      questions.map((entry) => ({
+        question_id: entry.question.id,
+        selected_option_id: entry.question.correct_option_id,
+        answered_offset_ms: 100,
+      })),
+      2_000,
+      false,
+    );
+
+    await store.resetParticipant(participantId ?? '', 'Tablet froze after submission');
+
+    const old = await store.getAttempt(started.attemptId);
+    expect(old?.status).toBe('invalidated');
+    // The score is retained, not wiped.
+    expect(old?.correct_count).not.toBeNull();
+    expect(await store.getRank(started.attemptId)).toBeNull();
+  });
+
   it('drops a disqualified attempt off the leaderboard', async () => {
     const board = await store.getLeaderboard(10);
     const target = board[0];
