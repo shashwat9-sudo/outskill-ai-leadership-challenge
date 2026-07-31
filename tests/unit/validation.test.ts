@@ -148,6 +148,32 @@ describe('registration schema', () => {
   });
 });
 
+describe('disqualification schema', () => {
+  const ATTEMPT_ID = '3f6d1c8e-9b2a-4d51-8f7c-2a5e4b1c9d03';
+
+  it('accepts a disqualification with a real reason', () => {
+    const result = disqualifySchema.safeParse({ attempt_id: ATTEMPT_ID, reason: 'Duplicate entry at the desk' });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects a missing reason', () => {
+    expect(disqualifySchema.safeParse({ attempt_id: ATTEMPT_ID }).success).toBe(false);
+  });
+
+  it('rejects an empty reason', () => {
+    expect(disqualifySchema.safeParse({ attempt_id: ATTEMPT_ID, reason: '' }).success).toBe(false);
+  });
+
+  it('rejects a whitespace-only reason', () => {
+    // The audit trail has to survive a prize dispute, so spaces must not pass for an explanation.
+    expect(disqualifySchema.safeParse({ attempt_id: ATTEMPT_ID, reason: '       ' }).success).toBe(false);
+  });
+
+  it('rejects a reason that is too short to mean anything', () => {
+    expect(disqualifySchema.safeParse({ attempt_id: ATTEMPT_ID, reason: 'no' }).success).toBe(false);
+  });
+});
+
 describe('submit schema', () => {
   const token = 'a'.repeat(40);
   const questionId = '00000000-0000-4000-8000-000000000001';
