@@ -1,0 +1,18 @@
+<!--
+  PLACEHOLDER — not the official Outskill logo.
+
+  This is a neutral text wordmark used only so the file path exists. Replace it with the official
+  asset and set NEXT_PUBLIC_HAS_OFFICIAL_LOGO=1. See public/README.md.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 64" width="320" height="64" role="img" aria-label="Outskill">
+  <title>Outskill</title>
+  <text
+    x="0"
+    y="44"
+    font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif"
+    font-size="34"
+    font-weight="600"
+    letter-spacing="10"
+    fill="#F7F7F2"
+  >OUTSKILL</text>
+</svg>
