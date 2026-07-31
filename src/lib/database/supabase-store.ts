@@ -61,6 +61,7 @@ function client(): SupabaseClient {
 /** Postgres error codes we translate into a caller-actionable StoreError. */
 const NOT_FOUND_CODES = new Set(['P0002', 'PGRST116']);
 const UNIQUE_VIOLATION = '23505';
+const CHECK_VIOLATION = '23514';
 
 function fail(context: string, error: { message: string; code?: string } | null): never {
   if (error && NOT_FOUND_CODES.has(error.code ?? '')) {
@@ -68,6 +69,16 @@ function fail(context: string, error: { message: string; code?: string } | null)
   }
   if (error?.code === UNIQUE_VIOLATION) {
     throw new StoreError('conflict', `${context}: that record already exists.`);
+  }
+  // A check-constraint violation means the row was asked to enter a state the schema forbids — for
+  // example verifying an attempt that was never submitted, or disqualifying one that was already
+  // invalidated. That is a rejected action, not a database outage, and telling booth staff the
+  // database is unreachable sends them to look at Supabase when nothing is wrong with it.
+  if (error?.code === CHECK_VIOLATION) {
+    throw new StoreError(
+      'invalid_state',
+      'That action cannot be applied to this entry in its current state. Refresh the page and check the entry.',
+    );
   }
   throw new StoreError('unavailable', `${context}: ${error?.message ?? 'database unavailable'}`);
 }
