@@ -23,6 +23,9 @@ next-env.d.ts
 .env.local
 .env.*.local
 
+# supabase cli — linked-project state, holds a pooler connection string
+/supabase/.temp/
+
 # misc
 .DS_Store
 *.pem

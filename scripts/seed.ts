@@ -1,5 +1,5 @@
 /**
- * Seed a live Supabase project with the settings row and the 60 questions.
+ * Seed a live Supabase project with the settings row and the 120 questions.
  *
  *   npm run seed
  *
