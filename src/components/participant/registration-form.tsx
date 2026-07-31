@@ -9,8 +9,9 @@ import { Button, Eyebrow } from '@/components/ui/primitives';
 /**
  * Registration.
  *
- * Three fields only — name, email, phone. No company, title, address or password: anything more is a
- * drop-off risk at a booth and is not needed to run the challenge or award the prize.
+ * Five fields — name, email, phone and company are required; designation is optional. Nothing more:
+ * no address, no password. Company and designation are the lead fields Outskill follows up on; they
+ * are shown in the admin screens and the CSV export, and never on the leaderboard or the LED display.
  *
  * Registering does not start the timer. That happens on the next screen.
  */
@@ -34,11 +35,15 @@ export function RegistrationForm({ onRegistered }: RegistrationFormProps) {
   const emailId = useId();
   const phoneId = useId();
   const countryId = useId();
+  const companyId = useId();
+  const designationId = useId();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState<string>('IN');
+  const [companyName, setCompanyName] = useState('');
+  const [designation, setDesignation] = useState('');
   const [publicOptIn, setPublicOptIn] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [acceptedRules, setAcceptedRules] = useState(false);
@@ -54,8 +59,31 @@ export function RegistrationForm({ onRegistered }: RegistrationFormProps) {
     setFormError(null);
     setFieldErrors({});
 
+    // Checked here as well as on the server so a mistyped lead field is flagged instantly at the
+    // booth, without a round trip. The server remains the authority — these mirror `registerSchema`.
+    const localErrors: Record<string, string> = {};
+    const trimmedCompany = companyName.trim();
+    const trimmedDesignation = designation.trim();
+
+    if (trimmedCompany.length < 2) {
+      localErrors.company_name = 'Please enter your company or organisation.';
+    } else if (trimmedCompany.length > 120) {
+      localErrors.company_name = 'That company name is too long.';
+    }
+
+    // Optional: blank is fine. Only a value that was actually typed is length-checked.
+    if (trimmedDesignation.length === 1) {
+      localErrors.designation = 'Please enter at least two characters, or leave this blank.';
+    } else if (trimmedDesignation.length > 100) {
+      localErrors.designation = 'That designation is too long.';
+    }
+
     if (!acceptedRules) {
-      setFieldErrors({ accepted_rules: 'Please accept the challenge rules and privacy notice.' });
+      localErrors.accepted_rules = 'Please accept the challenge rules and privacy notice.';
+    }
+
+    if (Object.keys(localErrors).length > 0) {
+      setFieldErrors(localErrors);
       return;
     }
 
@@ -67,6 +95,8 @@ export function RegistrationForm({ onRegistered }: RegistrationFormProps) {
         email,
         phone,
         phone_country: country,
+        company_name: trimmedCompany,
+        designation: trimmedDesignation.length > 0 ? trimmedDesignation : null,
         public_leaderboard_opt_in: publicOptIn,
         marketing_opt_in: marketingOptIn,
         accepted_rules: acceptedRules,
@@ -90,7 +120,7 @@ export function RegistrationForm({ onRegistered }: RegistrationFormProps) {
       <Eyebrow>Step 1 of 2</Eyebrow>
       <h1 className="mt-3 text-3xl font-semibold sm:text-4xl">Enter the challenge</h1>
       <p className="mt-3 max-w-lg text-[var(--color-ink-muted)]">
-        We only need three details. The timer does not start yet.
+        A few quick details. The timer does not start yet.
       </p>
 
       <div className="mt-8 space-y-5">
@@ -165,6 +195,37 @@ export function RegistrationForm({ onRegistered }: RegistrationFormProps) {
             Currently sending to {dial}. Numbers from other countries are welcome — pick the code above.
           </p>
         </Field>
+
+        <Field id={companyId} label="Company / Organisation" error={fieldErrors.company_name}>
+          <input
+            id={companyId}
+            name="company_name"
+            type="text"
+            autoComplete="organization"
+            required
+            maxLength={120}
+            value={companyName}
+            onChange={(event) => setCompanyName(event.target.value)}
+            className={inputClass(Boolean(fieldErrors.company_name))}
+            placeholder="Northwind Analytics"
+            aria-invalid={Boolean(fieldErrors.company_name)}
+          />
+        </Field>
+
+        <Field id={designationId} label="Designation / Job Title" optional error={fieldErrors.designation}>
+          <input
+            id={designationId}
+            name="designation"
+            type="text"
+            autoComplete="organization-title"
+            maxLength={100}
+            value={designation}
+            onChange={(event) => setDesignation(event.target.value)}
+            className={inputClass(Boolean(fieldErrors.designation))}
+            placeholder="Head of People"
+            aria-invalid={Boolean(fieldErrors.designation)}
+          />
+        </Field>
       </div>
 
       <div className="mt-8 space-y-3">
@@ -231,11 +292,13 @@ function inputClass(hasError: boolean): string {
 function Field({
   id,
   label,
+  optional = false,
   error,
   children,
 }: {
   id: string;
   label: string;
+  optional?: boolean;
   error?: string;
   children: React.ReactNode;
 }) {
@@ -243,6 +306,9 @@ function Field({
     <div>
       <label htmlFor={id} className="mb-2 block text-sm font-medium text-[var(--color-ink)]">
         {label}
+        {optional ? (
+          <span className="ml-2 text-xs font-normal text-[var(--color-ink-faint)]">Optional</span>
+        ) : null}
       </label>
       {children}
       {error ? (

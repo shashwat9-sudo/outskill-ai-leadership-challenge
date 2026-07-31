@@ -230,6 +230,42 @@ test.describe('admin management screens', () => {
     expect(body).not.toContain('Delete');
   });
 
+  test('30b. participants screen shows company and designation, and searches on them', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/admin/participants');
+
+    await expect(page.getByRole('columnheader', { name: 'Company / Role' })).toBeVisible();
+    await expect(page.getByText('Northwind Analytics').first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('Head of People').first()).toBeVisible();
+
+    const search = page.getByLabel('Search participants');
+
+    await search.fill('Northwind Analytics');
+    await page.getByRole('button', { name: 'Search' }).click();
+    await expect(page.getByText('Northwind Analytics').first()).toBeVisible({ timeout: 15_000 });
+
+    await search.fill('Chief People Officer');
+    await page.getByRole('button', { name: 'Search' }).click();
+    await expect(page.getByText('Chief People Officer').first()).toBeVisible({ timeout: 15_000 });
+
+    await search.fill('no-such-company-anywhere');
+    await page.getByRole('button', { name: 'Search' }).click();
+    await expect(page.getByText('No participants found')).toBeVisible({ timeout: 15_000 });
+  });
+
+  test('30c. shows an em dash, not an invented value, where a lead field is absent', async ({ page }) => {
+    await signIn(page);
+    await page.goto('/admin/participants');
+    await expect(page.getByRole('columnheader', { name: 'Company / Role' })).toBeVisible();
+
+    // The demo seed deliberately leaves some companies and some designations empty.
+    await expect(page.getByText('Not provided').first()).toBeAttached({ timeout: 15_000 });
+
+    const body = (await page.locator('body').textContent()) ?? '';
+    expect(body).not.toContain('Unknown');
+    expect(body).not.toContain('N/A');
+  });
+
   test('31. questions screen lists the seeded bank and can preview a question', async ({ page }) => {
     await signIn(page);
     await page.goto('/admin/questions');
@@ -282,6 +318,21 @@ test.describe('admin management screens', () => {
     expect(body).toContain('rank');
     // The leads export is the one file that legitimately carries contact details.
     expect(body).toContain('@example.invalid');
+
+    // Lead fields, immediately after the contact columns.
+    const header = body.split('\r\n')[0] ?? '';
+    const columns = header.replace(/^﻿/, '').split(',');
+    expect(columns.slice(0, 7)).toEqual([
+      'participant_id',
+      'full_name',
+      'email',
+      'phone_e164',
+      'phone_as_entered',
+      'company_name',
+      'designation',
+    ]);
+    // Demo participants carry sample employers, so real values reach the file, not just headers.
+    expect(body).toContain('Northwind Analytics');
   });
 
   test('35. the public leaderboard CSV carries masked names only', async ({ page }) => {

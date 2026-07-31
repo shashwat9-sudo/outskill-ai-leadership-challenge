@@ -78,6 +78,23 @@ test.describe('public leaderboard', () => {
     expect(body).not.toContain('full_name');
     expect(body).not.toContain('participant_id');
     expect(body).not.toContain('marketing');
+    expect(body).not.toContain('company');
+    expect(body).not.toContain('designation');
+  });
+
+  test('13b. neither the leaderboard page nor the public stats leak the lead fields', async ({ page }) => {
+    // The demo seed gives participants these employers and titles; none may reach a public surface.
+    const leadValues = ['Northwind Analytics', 'Example Retail Group', 'Chief People Officer', 'HR Business Partner'];
+
+    for (const path of ['/', '/leaderboard']) {
+      await page.goto(path);
+      const text = (await page.locator('body').innerText()) ?? '';
+      for (const value of leadValues) expect(text).not.toContain(value);
+    }
+
+    const stats = await page.request.get('/api/public/stats');
+    const payload = await stats.text();
+    for (const value of leadValues) expect(payload).not.toContain(value);
   });
 });
 
@@ -117,6 +134,20 @@ test.describe('LED display', () => {
     const text = (await page.locator('body').textContent()) ?? '';
     for (const surname of ['Sharma', 'Menon', 'Iyer']) {
       expect(text).not.toContain(surname);
+    }
+  });
+
+  test('15b. the display page never renders a company or job title', async ({ page }) => {
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    await page.goto('/display');
+    await expect(page.getByRole('heading', { name: 'Live Top 5' })).toBeVisible({ timeout: 15_000 });
+
+    // Long enough for all three scenes to have rendered at least once.
+    await page.waitForTimeout(24_000);
+
+    const text = (await page.locator('body').textContent()) ?? '';
+    for (const value of ['Northwind Analytics', 'Example Retail Group', 'Chief People Officer', 'Head of People']) {
+      expect(text).not.toContain(value);
     }
   });
 });

@@ -181,12 +181,26 @@ Save the file.
    paste it into the Supabase editor, and click **Run**.
    - You should see *Success. No rows returned.*
 4. Click **New query** again. Repeat with `supabase/migrations/0002_functions.sql`.
+5. Repeat once more for each remaining file, **in numerical order**:
+   - `0003_fix_ambiguous_column_refs.sql`
+   - `0004_fix_finalise_attempt_conflict_target.sql`
+   - `0005_add_participant_company_designation.sql`
+
+The order matters: each one builds on the state the previous one left behind.
 
 If you would rather have the terminal show you the files in order:
 
 ```bash
 npm run migrate:print
 ```
+
+Migration `0005` adds the **Company / Organisation** and **Designation / Job Title** fields to
+registration. Company is required of new registrations; designation is optional and may be left blank.
+Both columns are nullable in the database — company because rows registered before `0005` have no value,
+designation because blank is a legitimate answer — and the requirement is enforced by the new
+`register_participant_v2` function instead. The old `register_participant` stays in place, so an
+already-running deployment keeps working until you deploy the build that uses `v2`. Empty company and
+designation columns on older rows are correct and must not be filled in by hand.
 
 ---
 

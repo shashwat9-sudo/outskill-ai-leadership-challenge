@@ -59,6 +59,8 @@ beforeAll(async () => {
       email_normalized: normaliseEmail(email),
       phone_original: phone,
       phone_e164: phone,
+      company_name: `Load Corp ${index}`,
+      designation: 'Talent Lead',
       public_leaderboard_opt_in: index % 3 !== 0,
       marketing_opt_in: index % 2 === 0,
     });

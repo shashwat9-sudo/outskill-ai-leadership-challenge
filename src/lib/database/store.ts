@@ -30,6 +30,9 @@ export type RegisterParticipantInput = {
   email_normalized: string;
   phone_original: string;
   phone_e164: string;
+  company_name: string;
+  /** Optional at the booth; `null` when the participant left it blank. Never an empty string. */
+  designation: string | null;
   public_leaderboard_opt_in: boolean;
   marketing_opt_in: boolean;
 };

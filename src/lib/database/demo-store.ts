@@ -66,6 +66,23 @@ const DEMO_LEADER_NAMES = [
   'Imran Sheikh',
 ];
 
+/** Obviously fictional employers and titles, so demo data can never be mistaken for real leads. */
+const DEMO_COMPANIES = [
+  'Northwind Analytics',
+  'Example Retail Group',
+  'Sample Health Systems',
+  'Placeholder Logistics',
+  'Demo Financial Services',
+];
+
+const DEMO_DESIGNATIONS = [
+  'Head of People',
+  'HR Business Partner',
+  'Director, Talent',
+  'Chief People Officer',
+  'L&D Manager',
+];
+
 type DemoState = {
   settings: AppSettings;
   questions: Question[];
@@ -137,6 +154,11 @@ function seedState(): DemoState {
       email_normalized: `${slug}@example.invalid`,
       phone_original: `98${String(10_000_000 + index * 137).slice(0, 8)}`,
       phone_e164: `+9198${String(10_000_000 + index * 137).slice(0, 8)}`,
+      // Every fifth row has no company: it stands in for a registration taken before these fields
+      // existed. Every third has no designation, standing in for someone who left the optional field
+      // blank. Both make the em-dash rendering visible without touching real data.
+      company_name: index % 5 === 4 ? null : (DEMO_COMPANIES[index % DEMO_COMPANIES.length] ?? null),
+      designation: index % 3 === 2 ? null : (DEMO_DESIGNATIONS[index % DEMO_DESIGNATIONS.length] ?? null),
       public_leaderboard_opt_in: index % 3 !== 2,
       marketing_opt_in: index % 2 === 0,
       accepted_rules_at: submittedAt,
@@ -322,6 +344,8 @@ export class DemoStore implements DataStore {
       email_normalized: input.email_normalized,
       phone_original: input.phone_original,
       phone_e164: input.phone_e164,
+      company_name: input.company_name,
+      designation: input.designation,
       public_leaderboard_opt_in: input.public_leaderboard_opt_in,
       marketing_opt_in: input.marketing_opt_in,
       accepted_rules_at: timestamp,
@@ -617,8 +641,16 @@ export class DemoStore implements DataStore {
     return current.participants
       .filter((participant) => {
         if (!term) return true;
-        const haystack =
-          `${participant.full_name} ${participant.email_normalized} ${participant.phone_e164} ${participant.id}`.toLowerCase();
+        const haystack = [
+          participant.full_name,
+          participant.email_normalized,
+          participant.phone_e164,
+          participant.company_name ?? '',
+          participant.designation ?? '',
+          participant.id,
+        ]
+          .join(' ')
+          .toLowerCase();
         return haystack.includes(term);
       })
       .sort((left, right) => right.created_at.localeCompare(left.created_at))
@@ -843,6 +875,9 @@ export class DemoStore implements DataStore {
       participant.email_normalized = `anonymised.${index + 1}@invalid`;
       participant.phone_original = '';
       participant.phone_e164 = `+1${String(900_000_000 + index + 1)}`;
+      // Company and job title are re-identifying in combination, so they go too.
+      participant.company_name = null;
+      participant.designation = null;
       // Consent flags no longer describe a person anyone can contact, and leaving the leaderboard
       // opt-in on would keep publishing a name that is now meaningless.
       participant.public_leaderboard_opt_in = false;

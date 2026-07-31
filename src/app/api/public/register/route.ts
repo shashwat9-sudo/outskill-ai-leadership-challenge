@@ -74,6 +74,8 @@ export async function POST(request: NextRequest) {
       email_normalized: normaliseEmail(input.email),
       phone_original: input.phone.trim(),
       phone_e164: phone.e164,
+      company_name: input.company_name,
+      designation: input.designation,
       public_leaderboard_opt_in: input.public_leaderboard_opt_in,
       marketing_opt_in: input.marketing_opt_in,
     });

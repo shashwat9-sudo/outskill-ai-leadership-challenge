@@ -23,8 +23,11 @@ shown on a TV; the top-ranked verified entry wins an iPad once the Outskill team
 | Event admin | `/admin` | Outskill booth staff |
 | Printable QR poster | `/qr` | Booth staff only — not linked from any participant screen |
 
-It captures **name, email and phone only**. It never asks for company, title, designation, address or
-a password. It uses **no AI at runtime** — questions are a curated bank managed from the admin screens.
+It captures **name, email, phone and company** (all required) plus **designation** (optional) — nothing
+more. It never asks for a postal address or a password. Company and designation are lead fields for
+Outskill's event follow-up: they appear in the admin screens and the leads CSV, and never on the
+leaderboard or the LED display. It uses **no AI at runtime** — questions are a curated bank managed from
+the admin screens.
 
 **There are no result emails.** A participant's score and a review of all seven of their answers appear
 on the tablet immediately after they submit, and only there.

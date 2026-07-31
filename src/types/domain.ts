@@ -43,6 +43,14 @@ export type Participant = {
   email_normalized: string;
   phone_original: string;
   phone_e164: string;
+  /**
+   * Lead fields, captured for Outskill's event follow-up and never shown publicly.
+   *
+   * Nullable because production holds registrations taken before these fields existed. Every new
+   * registration requires both — enforced by `registerSchema` and again by `register_participant_v2`.
+   */
+  company_name: string | null;
+  designation: string | null;
   public_leaderboard_opt_in: boolean;
   marketing_opt_in: boolean;
   accepted_rules_at: string;

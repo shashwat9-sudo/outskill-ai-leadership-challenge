@@ -17,7 +17,15 @@ import type { OptionId } from '@/lib/config/constants';
 
 let store: DemoStore;
 
-function registration(overrides: Partial<{ name: string; email: string; phone: string }> = {}) {
+function registration(
+  overrides: Partial<{
+    name: string;
+    email: string;
+    phone: string;
+    company: string;
+    designation: string | null;
+  }> = {},
+) {
   const email = overrides.email ?? 'ananya@example.invalid';
   const phone = overrides.phone ?? '+919876543210';
   return {
@@ -26,6 +34,8 @@ function registration(overrides: Partial<{ name: string; email: string; phone: s
     email_normalized: normaliseEmail(email),
     phone_original: phone,
     phone_e164: phone,
+    company_name: overrides.company ?? 'Northwind Analytics',
+    designation: overrides.designation === undefined ? 'Head of People' : overrides.designation,
     public_leaderboard_opt_in: true,
     marketing_opt_in: false,
   };
@@ -108,6 +118,102 @@ describe('registration and duplicate protection', () => {
     await store.registerParticipant(registration({ phone: '+919000000009' }));
     const attempts = await store.searchAttempts(undefined, undefined, 500);
     expect(attempts.filter((row) => row.participant_id === first.participantId)).toHaveLength(1);
+  });
+
+  it('stores the company and designation against the participant', async () => {
+    const { participantId } = await store.registerParticipant(
+      registration({ company: 'Northwind Analytics', designation: 'Chief People Officer' }),
+    );
+    const participant = await store.getParticipant(participantId ?? '');
+    expect(participant?.company_name).toBe('Northwind Analytics');
+    expect(participant?.designation).toBe('Chief People Officer');
+  });
+
+  it('registers someone who left the optional designation blank', async () => {
+    const { participantId, duplicate } = await store.registerParticipant(registration({ designation: null }));
+    expect(duplicate).toBe(false);
+    const participant = await store.getParticipant(participantId ?? '');
+    expect(participant?.company_name).toBe('Northwind Analytics');
+    expect(participant?.designation).toBeNull();
+  });
+});
+
+describe('lead fields in admin surfaces', () => {
+  const LEAD = {
+    email: 'lead.tester@example.invalid',
+    phone: '+919000000123',
+    name: 'Lead Tester',
+    company: 'Zenith Robotics Pvt Ltd',
+    designation: 'VP, People & Culture',
+  };
+
+  it('finds a participant by company name', async () => {
+    await store.registerParticipant(registration(LEAD));
+    const rows = await store.searchParticipants('Zenith Robotics', 50);
+    expect(rows.map((row) => row.participant.full_name)).toContain('Lead Tester');
+  });
+
+  it('finds a participant by designation', async () => {
+    await store.registerParticipant(registration(LEAD));
+    const rows = await store.searchParticipants('People & Culture', 50);
+    expect(rows.map((row) => row.participant.full_name)).toContain('Lead Tester');
+  });
+
+  it('matches company case-insensitively, the way booth staff actually type', async () => {
+    await store.registerParticipant(registration(LEAD));
+    const rows = await store.searchParticipants('zenith robotics', 50);
+    expect(rows.map((row) => row.participant.full_name)).toContain('Lead Tester');
+  });
+
+  it('carries both fields into the participant export', async () => {
+    await store.registerParticipant(registration(LEAD));
+    const exported = await store.exportParticipants();
+    const row = exported.find((entry) => entry.email === LEAD.email);
+    expect(row?.company_name).toBe(LEAD.company);
+    expect(row?.designation).toBe(LEAD.designation);
+  });
+
+  it('never exposes company or designation on the public leaderboard', async () => {
+    const { participantId } = await store.registerParticipant(registration(LEAD));
+    const { started, questions } = await startRun(participantId ?? '');
+    await store.finaliseAttempt(
+      started.attemptId,
+      questions.map((entry) => ({
+        question_id: entry.question.id,
+        selected_option_id: entry.question.correct_option_id,
+        answered_offset_ms: 500,
+      })),
+      5_000,
+      false,
+    );
+
+    const board = await store.getLeaderboard(50);
+    expect(board.length).toBeGreaterThan(0);
+    // Asserted over the serialised rows so a future field added to LeaderboardRow cannot leak
+    // silently: the check does not depend on knowing which keys exist today.
+    const serialised = JSON.stringify(board);
+    expect(serialised).not.toContain(LEAD.company);
+    expect(serialised).not.toContain(LEAD.designation);
+    for (const row of board) {
+      expect(row).not.toHaveProperty('company_name');
+      expect(row).not.toHaveProperty('designation');
+    }
+  });
+
+  it('never exposes company or designation through the public stats used by the TV display', async () => {
+    await store.registerParticipant(registration(LEAD));
+    const stats = await store.getStats();
+    const serialised = JSON.stringify(stats);
+    expect(serialised).not.toContain(LEAD.company);
+    expect(serialised).not.toContain(LEAD.designation);
+  });
+
+  it('clears both fields when participants are anonymised', async () => {
+    const { participantId } = await store.registerParticipant(registration(LEAD));
+    await store.anonymiseParticipants();
+    const participant = await store.getParticipant(participantId ?? '');
+    expect(participant?.company_name).toBeNull();
+    expect(participant?.designation).toBeNull();
   });
 });
 

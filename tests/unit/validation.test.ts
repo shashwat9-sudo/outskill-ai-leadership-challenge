@@ -15,6 +15,8 @@ const VALID_REGISTRATION = {
   email: 'ananya@example.invalid',
   phone: '9876543210',
   phone_country: 'IN',
+  company_name: 'Northwind Analytics',
+  designation: 'Head of People',
   public_leaderboard_opt_in: false,
   marketing_opt_in: false,
   accepted_rules: true as const,
@@ -30,6 +32,8 @@ describe('registration schema', () => {
       full_name: 'Ananya Sharma',
       email: 'ananya@example.invalid',
       phone: '9876543210',
+      company_name: 'Northwind Analytics',
+      designation: 'Head of People',
       accepted_rules: true,
     });
     expect(parsed.public_leaderboard_opt_in).toBe(false);
@@ -56,6 +60,91 @@ describe('registration schema', () => {
 
   it('rejects an unknown country code shape', () => {
     expect(registerSchema.safeParse({ ...VALID_REGISTRATION, phone_country: 'india' }).success).toBe(false);
+  });
+
+  describe('company and designation', () => {
+    it('rejects a registration with no company at all', () => {
+      const { company_name: _omitted, ...withoutCompany } = VALID_REGISTRATION;
+      expect(registerSchema.safeParse(withoutCompany).success).toBe(false);
+    });
+
+    it('accepts a registration with no designation at all — it is optional', () => {
+      const { designation: _omitted, ...withoutDesignation } = VALID_REGISTRATION;
+      const result = registerSchema.safeParse(withoutDesignation);
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.data.designation).toBeNull();
+    });
+
+    it('accepts an explicit null designation', () => {
+      const parsed = registerSchema.parse({ ...VALID_REGISTRATION, designation: null });
+      expect(parsed.designation).toBeNull();
+    });
+
+    it('rejects an empty company', () => {
+      expect(registerSchema.safeParse({ ...VALID_REGISTRATION, company_name: '' }).success).toBe(false);
+    });
+
+    it('normalises an empty designation to null rather than an empty string', () => {
+      const parsed = registerSchema.parse({ ...VALID_REGISTRATION, designation: '' });
+      expect(parsed.designation).toBeNull();
+    });
+
+    it('rejects a whitespace-only company', () => {
+      expect(registerSchema.safeParse({ ...VALID_REGISTRATION, company_name: '     ' }).success).toBe(false);
+    });
+
+    it('normalises a whitespace-only designation to null', () => {
+      const parsed = registerSchema.parse({ ...VALID_REGISTRATION, designation: '\t \n ' });
+      expect(parsed.designation).toBeNull();
+    });
+
+    it('still rejects a designation that was typed but is too short', () => {
+      // Optional means "may be omitted", not "may be nonsense". One character is a typo, not a refusal.
+      expect(registerSchema.safeParse({ ...VALID_REGISTRATION, designation: 'H' }).success).toBe(false);
+    });
+
+    it('enforces the company length boundaries', () => {
+      expect(registerSchema.safeParse({ ...VALID_REGISTRATION, company_name: 'A' }).success).toBe(false);
+      expect(registerSchema.safeParse({ ...VALID_REGISTRATION, company_name: 'AB' }).success).toBe(true);
+      expect(registerSchema.safeParse({ ...VALID_REGISTRATION, company_name: 'A'.repeat(120) }).success).toBe(true);
+      expect(registerSchema.safeParse({ ...VALID_REGISTRATION, company_name: 'A'.repeat(121) }).success).toBe(false);
+    });
+
+    it('enforces the designation length boundaries when a value is supplied', () => {
+      expect(registerSchema.safeParse({ ...VALID_REGISTRATION, designation: 'A' }).success).toBe(false);
+      expect(registerSchema.safeParse({ ...VALID_REGISTRATION, designation: 'AB' }).success).toBe(true);
+      expect(registerSchema.safeParse({ ...VALID_REGISTRATION, designation: 'A'.repeat(100) }).success).toBe(true);
+      expect(registerSchema.safeParse({ ...VALID_REGISTRATION, designation: 'A'.repeat(101) }).success).toBe(false);
+    });
+
+    it('measures length after trimming, so padding cannot smuggle an over-long value through', () => {
+      const padded = `  ${'A'.repeat(120)}  `;
+      const parsed = registerSchema.parse({ ...VALID_REGISTRATION, company_name: padded });
+      expect(parsed.company_name).toHaveLength(120);
+    });
+
+    it('trims both fields', () => {
+      const parsed = registerSchema.parse({
+        ...VALID_REGISTRATION,
+        company_name: '  Northwind Analytics  ',
+        designation: '  Head of People  ',
+      });
+      expect(parsed.company_name).toBe('Northwind Analytics');
+      expect(parsed.designation).toBe('Head of People');
+    });
+
+    it('accepts real-world names with punctuation, digits and non-Latin scripts', () => {
+      for (const company of ["L'Oréal India", 'Tata Consultancy Services (TCS)', 'AT&T', '3M India', 'पीपल मैटर्स']) {
+        expect(registerSchema.safeParse({ ...VALID_REGISTRATION, company_name: company }).success).toBe(true);
+      }
+      for (const title of ['VP, People & Culture', 'Head of L&D', 'Sr. Manager — Talent', 'सलाहकार']) {
+        expect(registerSchema.safeParse({ ...VALID_REGISTRATION, designation: title }).success).toBe(true);
+      }
+    });
+
+    it('rejects a company made only of punctuation', () => {
+      expect(registerSchema.safeParse({ ...VALID_REGISTRATION, company_name: '---' }).success).toBe(false);
+    });
   });
 });
 

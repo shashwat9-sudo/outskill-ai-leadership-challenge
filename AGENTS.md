@@ -19,7 +19,10 @@ It is a **premium executive experience**, not a school quiz. Tone, copy and visu
 2. Participants only ever see: correct answers out of 7, completion time, leaderboard position, and a
    top-5 verification message. No PDF, no email, no WhatsApp, no per-question feedback.
 3. **No runtime AI / LLM calls.** Questions are a curated static bank managed through the admin UI.
-4. Only name, email and phone are collected. Never company, title, designation, address or password.
+4. Only name, email, phone, company (all required) and designation (optional) are collected. Never a
+   postal address or password. Company and designation are lead fields: admin screens and the leads CSV
+   only, never on `/`, `/leaderboard`, `/display`, the public stats or the participant result screen.
+   A blank designation is stored as `null`, never as an empty string or an invented placeholder.
 
 ## Non-negotiable engineering rules
 

@@ -255,16 +255,23 @@ Do this **at the end of each day**, not just at the end.
 2. Click **Download CSV** under **Leads**.
 3. Save it somewhere backed up, and name it clearly: `outskill-leads-day1.csv`.
 
-The file contains name, email, phone, both consent flags and their result.
+The file contains name, email, phone, company, designation, both consent flags and their result.
 
 > **Only contact people whose `marketing_opt_in` column says `true`.** That column is the record of
 > what they agreed to. The `public_leaderboard_opt_in` column is a different consent and does not
 > permit follow-up.
 
-The Leads file contains, per participant: id, name, email, phone, registration and submission times in
-both UTC and Asia/Kolkata, score, questions attempted and correct, completion time in milliseconds and
-in seconds, rank, both consent flags, verification status and time, and disqualification status and
-reason. It is tested to handle at least 2,500 records without truncation.
+The Leads file contains, per participant: id, name, email, phone, company, designation, registration and
+submission times in both UTC and Asia/Kolkata, score, questions attempted and correct, completion time in
+milliseconds and in seconds, rank, both consent flags, verification status and time, and disqualification
+status and reason. It is tested to handle at least 2,500 records without truncation.
+
+Two reasons a lead column can be empty, and neither is a fault to correct by hand:
+
+- **`designation` blank** — the job title is optional on the form, so a participant may simply have
+  skipped it.
+- **`company_name` blank** — the participant registered before these fields existed. Company is
+  required of every registration taken since.
 
 Other exports available on the same screen: full attempt data, a public-safe leaderboard (masked names,
 safe to share), and the question bank.

@@ -249,7 +249,7 @@ export class SupabaseStore implements DataStore {
 
   async registerParticipant(input: RegisterParticipantInput): Promise<RegisterParticipantResult> {
     const { rows, error } = await callRpc<{ participant_id: string | null; duplicate: boolean }>(
-      'register_participant',
+      'register_participant_v2',
       {
         p_full_name: input.full_name,
         p_email: input.email,
@@ -258,6 +258,8 @@ export class SupabaseStore implements DataStore {
         p_phone_e164: input.phone_e164,
         p_public_opt_in: input.public_leaderboard_opt_in,
         p_marketing_opt_in: input.marketing_opt_in,
+        p_company_name: input.company_name,
+        p_designation: input.designation,
       },
     );
     if (error) fail('Register participant', error);
@@ -499,7 +501,13 @@ export class SupabaseStore implements DataStore {
 
     if (query) {
       const term = `%${query.replace(/[%_]/g, '')}%`;
-      const clauses = [`full_name.ilike.${term}`, `email_normalized.ilike.${term}`, `phone_e164.ilike.${term}`];
+      const clauses = [
+        `full_name.ilike.${term}`,
+        `email_normalized.ilike.${term}`,
+        `phone_e164.ilike.${term}`,
+        `company_name.ilike.${term}`,
+        `designation.ilike.${term}`,
+      ];
       // A UUID search must be an equality test; ilike against a uuid column is a type error.
       if (/^[0-9a-f-]{36}$/i.test(query)) clauses.push(`id.eq.${query}`);
       request = request.or(clauses.join(','));
@@ -756,6 +764,10 @@ export class SupabaseStore implements DataStore {
           email_normalized: `anonymised.${token}@invalid`,
           phone_original: '',
           phone_e164: `+1${String(900_000_000 + index + 1)}`,
+          // Company and job title are re-identifying in combination, so anonymisation clears them
+          // alongside the name, email and phone.
+          company_name: null,
+          designation: null,
           public_leaderboard_opt_in: false,
           marketing_opt_in: false,
         })

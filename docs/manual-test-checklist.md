@@ -36,8 +36,14 @@ Tester: ________________  Date: ____________  URL tested: ______________________
 
 ## C. Registration
 
-- [ ] The form asks for name, email and phone **only**
-- [ ] It does **not** ask for company, job title, designation, address or password
+- [ ] The form asks for name, email, phone, **Company / Organisation** and **Designation / Job Title**
+- [ ] **Designation / Job Title** is visibly marked *Optional*; the other four are not
+- [ ] It does **not** ask for a postal address or a password
+- [ ] Submitting with an empty company shows "Please enter your company or organisation." on that field
+- [ ] Spaces-only in the company field is rejected the same way
+- [ ] Submitting with the designation **left blank succeeds** and reaches the instructions screen
+- [ ] A one-character designation shows "Please enter at least two characters, or leave this blank."
+- [ ] On a booth tablet the form scrolls vertically only — no horizontal scrolling at any width
 - [ ] Both opt-in checkboxes are **unticked** by default
 - [ ] The rules acknowledgement is required — submitting without it shows an error
 - [ ] "challenge rules" and "privacy notice" links open the right pages
@@ -207,7 +213,12 @@ Tester: ________________  Date: ____________  URL tested: ______________________
 - [ ] Search by name works
 - [ ] Search by email works
 - [ ] Search by phone works
+- [ ] Search by company works
+- [ ] Search by designation works
 - [ ] Search by participant ID works
+- [ ] The **Company / Role** column shows company and designation
+- [ ] A participant who left the designation blank shows an em dash, not "Unknown"
+- [ ] A participant registered before these fields existed shows an em dash for both
 - [ ] Registration date, attempt status, score, rank and consents are shown
 - [ ] **Reset** requires a reason
 - [ ] After a reset, the old attempt disappears from the leaderboard but still exists in the records
@@ -249,9 +260,11 @@ Tester: ________________  Date: ____________  URL tested: ______________________
 
 - [ ] Leads CSV downloads and opens correctly in Excel
 - [ ] Names with non-Latin characters render correctly in Excel (not as mojibake)
+- [ ] `company_name` and `designation` columns are present, immediately after `phone_as_entered`
+- [ ] A company containing a comma or an apostrophe stays in one cell when opened in Excel
 - [ ] `marketing_opt_in` column is present and accurate
 - [ ] Attempts CSV downloads
-- [ ] Public leaderboard CSV downloads and contains **no** emails or phone numbers
+- [ ] Public leaderboard CSV downloads and contains **no** emails, phone numbers, companies or job titles
 - [ ] Questions CSV downloads and can be re-imported
 - [ ] The audit log shows every verify, disqualify, reset, lock and export you performed
 

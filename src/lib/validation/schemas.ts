@@ -31,6 +31,39 @@ export const registerSchema = z.object({
     .length(2, 'Select a country.')
     .regex(/^[A-Z]{2}$/, 'Select a country.')
     .optional(),
+  // Deliberately no character-class restriction beyond requiring one letter or digit: real
+  // organisation names and job titles carry ampersands, dots, slashes, hyphens, digits and non-Latin
+  // scripts, and a booth form that rejects "L'Oréal" or "पीपल मैटर्स" would be worse than one that
+  // accepts noise.
+  company_name: z
+    .string()
+    .trim()
+    .min(2, 'Please enter your company or organisation.')
+    .max(120, 'That company name is too long.')
+    .refine((value) => /\p{L}|\p{N}/u.test(value), 'Please enter your company or organisation.'),
+  /**
+   * Optional. Absent, null and blank all mean the same thing and all normalise to `null`, so the
+   * column never holds an empty string — the database check accepts null or 2–100 characters, with
+   * nothing in between. A value that is present but too short is still an error rather than a silent
+   * discard: someone who typed "H" made a mistake, they did not decline to answer.
+   */
+  designation: z
+    .string()
+    .trim()
+    .max(100, 'That designation is too long.')
+    .refine(
+      (value) => value.length === 0 || value.length >= 2,
+      'Please enter at least two characters, or leave this blank.',
+    )
+    .refine(
+      (value) => value.length === 0 || /\p{L}|\p{N}/u.test(value),
+      'Please enter your designation or job title, or leave this blank.',
+    )
+    .nullish()
+    .transform((value) => {
+      const trimmed = (value ?? '').trim();
+      return trimmed.length > 0 ? trimmed : null;
+    }),
   public_leaderboard_opt_in: z.boolean().default(false),
   marketing_opt_in: z.boolean().default(false),
   accepted_rules: z.literal(true, { message: 'Please accept the challenge rules and privacy notice.' }),

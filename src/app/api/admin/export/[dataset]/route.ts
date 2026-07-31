@@ -71,6 +71,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ dat
         toCsv(
           [
             'participant_id', 'full_name', 'email', 'phone_e164', 'phone_as_entered',
+            'company_name', 'designation',
             'registered_at_utc', 'registered_at_ist',
             'submitted_at_utc', 'submitted_at_ist',
             'score', 'questions_attempted', 'questions_correct',
@@ -83,6 +84,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ dat
             const rank = row.attempt_id ? (rankByAttempt.get(row.attempt_id) ?? '') : '';
             return [
               row.id, row.full_name, row.email, row.phone_e164, row.phone_original,
+              row.company_name ?? '', row.designation ?? '',
               row.created_at, formatExportTimestamp(row.created_at),
               row.submitted_at ?? '', formatExportTimestamp(row.submitted_at),
               row.correct_count ?? '', row.questions_attempted, row.correct_count ?? '',

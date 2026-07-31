@@ -87,7 +87,7 @@ export function ParticipantsView() {
     <>
       <AdminPageHeader
         title="Participants"
-        description="Search by name, email, phone or participant ID. Records are never deleted here."
+        description="Search by name, email, phone, company, designation or participant ID. Records are never deleted here."
         actions={
           // A Route Handler streaming a CSV attachment, not a page — next/link would client-navigate
           // and break the download.
@@ -114,7 +114,7 @@ export function ParticipantsView() {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Name, email, phone or participant ID"
+            placeholder="Name, email, phone, company, designation or participant ID"
             aria-label="Search participants"
             className="w-full min-h-[3rem] rounded-[var(--radius-md)] border border-[var(--color-hairline-strong)] bg-[var(--color-surface-2)] pl-10 pr-4 text-sm text-[var(--color-ink)] focus:border-[var(--color-accent)]"
           />
@@ -140,11 +140,12 @@ export function ParticipantsView() {
         <EmptyState title="No participants found" description="Nobody has registered yet, or the search returned nothing." />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[60rem] border-collapse text-sm">
+          <table className="w-full min-w-[72rem] border-collapse text-sm">
             <thead>
               <tr className="border-b border-[var(--color-hairline)] text-left text-xs uppercase tracking-[0.14em] text-[var(--color-ink-faint)]">
                 <th scope="col" className="py-3 pr-3">Participant</th>
                 <th scope="col" className="py-3 pr-3">Contact</th>
+                <th scope="col" className="py-3 pr-3">Company / Role</th>
                 <th scope="col" className="py-3 pr-3">Registered</th>
                 <th scope="col" className="py-3 pr-3">Attempt</th>
                 <th scope="col" className="py-3 pr-3">Consent</th>
@@ -161,6 +162,15 @@ export function ParticipantsView() {
                   <td className="py-3.5 pr-3 text-[var(--color-ink-muted)]">
                     <p>{row.participant.email}</p>
                     <p className="numeric mt-0.5">{row.participant.phone_e164}</p>
+                  </td>
+                  {/* Lead fields. Company is required of new registrations but null on historical
+                      rows; designation is optional, so null is normal. Both render as an em dash
+                      rather than an invented placeholder. */}
+                  <td className="py-3.5 pr-3 text-[var(--color-ink-muted)]">
+                    <p>{row.participant.company_name ?? <NotProvided />}</p>
+                    <p className="mt-0.5 text-[0.8rem] text-[var(--color-ink-faint)]">
+                      {row.participant.designation ?? <NotProvided />}
+                    </p>
                   </td>
                   <td className="py-3.5 pr-3 text-[var(--color-ink-muted)]">
                     {formatShortDateTime(row.participant.created_at)}
@@ -244,5 +254,21 @@ export function ParticipantsView() {
         </Modal>
       ) : null}
     </>
+  );
+}
+
+/**
+ * Placeholder for a lead field with no value.
+ *
+ * Covers two cases that cannot be told apart from the data, and deliberately does not claim to know
+ * which: a registration taken before these fields existed, and a participant who left the optional
+ * designation blank. Never "Unknown" — nothing was answered, so nothing is being guessed at.
+ */
+function NotProvided() {
+  return (
+    <span className="text-[var(--color-ink-faint)]" title="Not provided">
+      <span aria-hidden>—</span>
+      <span className="sr-only">Not provided</span>
+    </span>
   );
 }

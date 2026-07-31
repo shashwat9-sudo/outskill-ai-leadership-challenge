@@ -39,6 +39,11 @@ export default async function PrivacyPage() {
           </li>
           <li className="flex gap-3">
             <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[var(--color-accent)]" />
+            Your company or organisation. Your designation or job title is optional — you may leave it
+            blank and still take part.
+          </li>
+          <li className="flex gap-3">
+            <span aria-hidden className="mt-2 h-1 w-1 shrink-0 rounded-full bg-[var(--color-accent)]" />
             Your answers, your score and how long you took.
           </li>
           <li className="flex gap-3">
@@ -47,10 +52,19 @@ export default async function PrivacyPage() {
           </li>
         </ul>
 
+        <h2 className="mt-10 text-xl font-semibold">Why we ask for your company and role</h2>
+        <p className="mt-4 leading-relaxed text-[var(--color-ink-muted)]">
+          Your company or organisation and your designation or job title are collected for event lead
+          management and relevant Outskill follow-up, so that anything we send you afterwards suits the
+          work you actually do. Your company is required to enter; your job title is optional and can be
+          left blank. Both are visible only to the Outskill team running the booth. They never appear on
+          the leaderboard, on the big screen, or anywhere else in public.
+        </p>
+
         <h2 className="mt-10 text-xl font-semibold">What we do not collect</h2>
         <p className="mt-4 leading-relaxed text-[var(--color-ink-muted)]">
-          We do not ask for your company, job title, designation, address or a password. We do not store
-          your IP address — only a one-way scrambled version of it, used to spot automated abuse.
+          We do not ask for your postal address or a password. We do not store your IP address — only a
+          one-way scrambled version of it, used to spot automated abuse.
         </p>
 
         <h2 className="mt-10 text-xl font-semibold">How it is used</h2>
@@ -77,7 +91,8 @@ export default async function PrivacyPage() {
         <p className="mt-4 leading-relaxed text-[var(--color-ink-muted)]">
           Only if you ticked the leaderboard box: your first name and the initial of your surname, for
           example &ldquo;Ananya S.&rdquo;. Otherwise you appear as &ldquo;Anonymous Leader&rdquo; with a
-          number. Your email address and phone number are never shown publicly, on any screen.
+          number. Your email address, phone number, company and job title are never shown publicly, on any
+          screen.
         </p>
 
         <h2 className="mt-10 text-xl font-semibold">Contacting us about your data</h2>

@@ -22,6 +22,8 @@ async function addParticipant(index: number) {
     email_normalized: normaliseEmail(email),
     phone_original: `96000000${String(index).padStart(2, '0')}`,
     phone_e164: `+9196000000${String(index).padStart(2, '0')}`,
+    company_name: `Retention Corp ${index}`,
+    designation: 'Head of People',
     public_leaderboard_opt_in: true,
     marketing_opt_in: true,
   });

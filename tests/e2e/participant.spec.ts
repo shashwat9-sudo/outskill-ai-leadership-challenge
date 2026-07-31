@@ -15,14 +15,25 @@ function uniqueParticipant(tag: string) {
     email: `e2e.${tag}.${stamp}@example.invalid`,
     // A valid Indian mobile: 9 followed by nine digits.
     phone: `9${stamp}`,
+    company: `Example Corp ${tag}`,
+    designation: 'Head of People',
   };
 }
 
-async function register(page: Page, person: { name: string; email: string; phone: string }) {
-  await page.goto('/challenge');
+type TestPerson = ReturnType<typeof uniqueParticipant>;
+
+/** Fill the registration form without submitting, so a test can assert on validation first. */
+async function fillRegistration(page: Page, person: TestPerson) {
   await page.getByLabel('Full name').fill(person.name);
   await page.getByLabel('Work email').fill(person.email);
   await page.getByLabel('Mobile number').fill(person.phone);
+  await page.getByLabel('Company / Organisation').fill(person.company);
+  await page.getByLabel('Designation / Job Title').fill(person.designation);
+}
+
+async function register(page: Page, person: TestPerson) {
+  await page.goto('/challenge');
+  await fillRegistration(page, person);
   await page.getByRole('checkbox', { name: /I agree to the/ }).check();
   await page.getByRole('button', { name: 'Continue' }).click();
 }
@@ -69,9 +80,7 @@ test.describe('participant flow', () => {
     await page.getByRole('link', { name: 'Take the Challenge' }).click();
     await expect(page.getByRole('heading', { name: 'Enter the challenge' })).toBeVisible();
 
-    await page.getByLabel('Full name').fill(person.name);
-    await page.getByLabel('Work email').fill(person.email);
-    await page.getByLabel('Mobile number').fill(person.phone);
+    await fillRegistration(page, person);
     await page.getByRole('checkbox', { name: /I agree to the/ }).check();
     await page.getByRole('button', { name: 'Continue' }).click();
 
@@ -145,8 +154,8 @@ test.describe('participant flow', () => {
     await page.evaluate(() => window.sessionStorage.clear());
     await page.reload();
 
-    await page.getByLabel('Full name').fill(person.name);
-    await page.getByLabel('Work email').fill(person.email);
+    await fillRegistration(page, person);
+    // Same email, different phone — the duplicate rule must still recognise the person.
     await page.getByLabel('Mobile number').fill('9000000123');
     await page.getByRole('checkbox', { name: /I agree to the/ }).check();
     await page.getByRole('button', { name: 'Continue' }).click();
@@ -227,9 +236,7 @@ test.describe('kiosk mode', () => {
     const person = uniqueParticipant('kiosk');
 
     await page.goto('/challenge?kiosk=1');
-    await page.getByLabel('Full name').fill(person.name);
-    await page.getByLabel('Work email').fill(person.email);
-    await page.getByLabel('Mobile number').fill(person.phone);
+    await fillRegistration(page, person);
     await page.getByRole('checkbox', { name: /I agree to the/ }).check();
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('button', { name: 'Start Challenge' }).click();
@@ -304,9 +311,7 @@ test.describe('on-screen result and answer review', () => {
     const person = uniqueParticipant('manualreset');
 
     await page.goto('/challenge?kiosk=1');
-    await page.getByLabel('Full name').fill(person.name);
-    await page.getByLabel('Work email').fill(person.email);
-    await page.getByLabel('Mobile number').fill(person.phone);
+    await fillRegistration(page, person);
     await page.getByRole('checkbox', { name: /I agree to the/ }).check();
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('button', { name: 'Start Challenge' }).click();
@@ -332,9 +337,7 @@ test.describe('on-screen result and answer review', () => {
     const person = uniqueParticipant('back');
 
     await page.goto('/challenge?kiosk=1');
-    await page.getByLabel('Full name').fill(person.name);
-    await page.getByLabel('Work email').fill(person.email);
-    await page.getByLabel('Mobile number').fill(person.phone);
+    await fillRegistration(page, person);
     await page.getByRole('checkbox', { name: /I agree to the/ }).check();
     await page.getByRole('button', { name: 'Continue' }).click();
     await page.getByRole('button', { name: 'Start Challenge' }).click();
@@ -350,5 +353,116 @@ test.describe('on-screen result and answer review', () => {
     // Whatever the browser restores, the previous participant's score must not be on screen.
     await expect(page.getByText(/You scored \d out of 7/)).toHaveCount(0);
     await expect(page.getByTestId('review-item')).toHaveCount(0);
+  });
+});
+
+test.describe('company and designation capture', () => {
+  test('44. refuses to register without a company', async ({ page }) => {
+    const person = uniqueParticipant('nocompany');
+
+    await page.goto('/challenge');
+    await fillRegistration(page, person);
+    await page.getByLabel('Company / Organisation').fill('');
+    await page.getByRole('checkbox', { name: /I agree to the/ }).check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page.getByText('Please enter your company or organisation.')).toBeVisible();
+    // Still on the registration step — the run must not have started.
+    await expect(page.getByRole('heading', { name: 'Enter the challenge' })).toBeVisible();
+  });
+
+  test('45. registers successfully with the designation left blank', async ({ page }) => {
+    const person = uniqueParticipant('nodesignation');
+
+    await page.goto('/challenge');
+    await fillRegistration(page, person);
+    await page.getByLabel('Designation / Job Title').fill('');
+    await page.getByRole('checkbox', { name: /I agree to the/ }).check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    // Designation is optional, so this must proceed to the instructions screen.
+    await expect(page.getByRole('heading', { name: 'Before you start' })).toBeVisible();
+  });
+
+  test('45b. still rejects a designation that was typed but is too short', async ({ page }) => {
+    const person = uniqueParticipant('shortdesignation');
+
+    await page.goto('/challenge');
+    await fillRegistration(page, person);
+    await page.getByLabel('Designation / Job Title').fill('H');
+    await page.getByRole('checkbox', { name: /I agree to the/ }).check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page.getByText('Please enter at least two characters, or leave this blank.')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Enter the challenge' })).toBeVisible();
+  });
+
+  test('46. refuses a whitespace-only company but accepts a whitespace-only designation', async ({ page }) => {
+    const person = uniqueParticipant('blanklead');
+
+    await page.goto('/challenge');
+    await fillRegistration(page, person);
+    await page.getByLabel('Company / Organisation').fill('   ');
+    await page.getByLabel('Designation / Job Title').fill('   ');
+    await page.getByRole('checkbox', { name: /I agree to the/ }).check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+
+    await expect(page.getByText('Please enter your company or organisation.')).toBeVisible();
+    // Spaces in the optional field are simply discarded, not reported as an error.
+    await expect(page.getByText('Please enter at least two characters, or leave this blank.')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: 'Enter the challenge' })).toBeVisible();
+  });
+
+  test('46b. marks the designation field as optional on screen', async ({ page }) => {
+    await page.goto('/challenge');
+    const designationLabel = page.locator('label', { hasText: 'Designation / Job Title' });
+    await expect(designationLabel).toContainText('Optional');
+
+    // The four required fields must not be marked optional.
+    for (const label of ['Full name', 'Work email', 'Mobile number', 'Company / Organisation']) {
+      await expect(page.locator('label', { hasText: label }).first()).not.toContainText('Optional');
+    }
+  });
+
+  test('47. completes a kiosk run end to end with the two new fields', async ({ page }) => {
+    const person = uniqueParticipant('leadkiosk');
+
+    await page.goto('/challenge?kiosk=1');
+    await fillRegistration(page, person);
+    await page.getByRole('checkbox', { name: /I agree to the/ }).check();
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByRole('button', { name: 'Start Challenge' }).click();
+
+    await answerAll(page);
+    await expect(page.getByText(/You scored \d out of 7/)).toBeVisible({ timeout: 20_000 });
+
+    // The result screen belongs to the participant and to anyone standing behind them at the booth,
+    // so it must not repeat back the lead data.
+    await expect(page.getByText(person.company)).toHaveCount(0);
+    await expect(page.getByText(person.designation)).toHaveCount(0);
+  });
+
+  test('48. never shows company or designation on the public screens', async ({ page }) => {
+    const person = uniqueParticipant('leadpublic');
+
+    await register(page, person);
+    await page.getByRole('button', { name: 'Start Challenge' }).click();
+    await answerAll(page);
+    await expect(page.getByText(/You scored \d out of 7/)).toBeVisible({ timeout: 20_000 });
+
+    for (const path of ['/', '/leaderboard', '/display']) {
+      await page.goto(path);
+      const body = await page.locator('body').innerText();
+      expect(body).not.toContain(person.company);
+      expect(body).not.toContain(person.designation);
+    }
+
+    // Also assert on the raw public API payloads, not just the rendered text.
+    for (const endpoint of ['/api/public/leaderboard', '/api/public/stats']) {
+      const response = await page.request.get(endpoint);
+      const payload = await response.text();
+      expect(payload).not.toContain(person.company);
+      expect(payload).not.toContain(person.designation);
+    }
   });
 });
